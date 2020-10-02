@@ -1,0 +1,41 @@
+service: line-it-trend-news
+
+provider:
+    name: aws
+    region: ap-northeast-1
+    profile: ${opt:profile, ''}
+    stage: ${opt:stage, 'dev'}
+    runtime: provided
+
+package:
+    # Directories to exclude from deployment
+    exclude:
+        - node_modules/**
+        - public/storage
+        - resources/assets/**
+        - storage/**
+        - tests/**
+
+functions:
+    web:
+        handler: public/index.php
+        timeout: 28
+        layers:
+            - ${bref:layer.php-74-fpm}
+        events:
+            -   http: 'ANY /'
+            -   http: 'ANY /{proxy+}'
+    artisan:
+        handler: artisan
+        timeout: 120
+        layers:
+            - ${bref:layer.php-74}
+            - ${bref:layer.console}
+        events:
+            - schedule:
+                rate: rate(1 minute)
+                input:
+                    cli: schedule:run
+
+plugins:
+    - ./vendor/bref/bref
