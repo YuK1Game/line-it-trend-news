@@ -59,25 +59,21 @@ class SendLineMessageCommand extends Command
     private function createQiitaTrendMessage() {
         $response = \Http::get('https://qiita.com');
 
-        $crawler = new Crawler($response->getBody()->getContents());
-        $node = $crawler->filter('div[data-hyperapp-app="Trend"]')->eq(0);
-        $value = $node->attr('data-hyperapp-props');
-        
-        $message = collect(json_decode($value, true))
-            ->dotc('trend.edges', [])
-            ->slice(0, 5)
-            ->map(function($row) {
-                $data = collect($row);
-                $subject = $data->dot('node.title');
-                $uuid = $data->dot('node.uuid');
-                $userName = $data->dot('node.author.userName');
-                $url = sprintf('https://qiita.com/%s/items/%s', $userName, $uuid);
+        $crawler = new Crawler();
+        $crawler->addHtmlContent($response->getBody()->getContents(), 'utf-8');
 
-                return sprintf('▼ %s%s%s', $subject, "\n", $url);
-            })
-            ->join("\n\n");
+        $list = collect([]);
+        $node = $crawler->filter('div.tr-Item_body')->each(function($node) use($list) {
+            $title = $node->filter('a.tr-Item_title')->eq(0)->text() ?? null;
+            $url   = $node->filter('a.tr-Item_title')->eq(0)->attr('href') ?? null;
+            $list->push([ $title, $url ]);
+        });
 
-        return $message;
+        return $list->slice(0, 5)->map(function($data) {
+            list($title, $url) = $data;
+            return sprintf('▼ %s%s%s', $title, "\n", $url);
+        })
+        ->join("\n\n");
     }
 
     private function createHatenaTrendMessage() {
